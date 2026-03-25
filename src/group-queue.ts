@@ -2,10 +2,10 @@ import { ChildProcess } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-import { DATA_DIR } from './config.js'; // MAX_CONCURRENT_CONTAINERS 제거
+import { DATA_DIR } from './config.js';
 import { logger } from './logger.js';
 
-const MAX_CONCURRENT_CONTAINERS = 5; // 직접 선언
+const MAX_CONCURRENT_CONTAINERS = 5;
 
 interface QueuedTask {
   id: string;
