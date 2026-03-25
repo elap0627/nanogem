@@ -68,7 +68,7 @@ export async function runGeminiAgent(
   const uploadedFiles = await uploadOntologyFiles(fileManager);
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-3.0-flash",
     systemInstruction: `너는 제안서 작성을 돕는 최고 수준의 AI 에이전트야. 
     사용자의 요청이 들어오면 첨부된 제안서 온톨로지 파일들의 폼, 레이아웃, 톤앤매너를 반드시 분석하여 제안서 초안을 작성해.
     작성이 완료되면 반드시 'send_email' 도구를 사용해 사용자에게 발송해.`,
