@@ -9,8 +9,8 @@ import {
   SCHEDULER_POLL_INTERVAL,
   TIMEZONE,
 } from './config.js';
-import { ContainerOutput, runGeminiAgent as runContainerAgent } from './gemini-runner.js'; // gemini-runner로 교체
-const writeTasksSnapshot = (a: any, b: any, c: any) => {}; // 더 이상 사용되지 않는 스냅샷 기능 무시
+import { ContainerOutput, runGeminiAgent as runContainerAgent } from './gemini-runner.js'; 
+const writeTasksSnapshot = (a: any, b: any, c: any) => {};
 
 import {
   getAllTasks,
@@ -101,7 +101,7 @@ async function runTask(
         isMain,
         isScheduledTask: true,
         assistantName: ASSISTANT_NAME,
-      } as any, // ContainerInput 호환을 위해 any 처리
+      } as any, 
       async (streamedOutput: ContainerOutput) => {
         if (streamedOutput.result) {
           result = streamedOutput.result;
@@ -172,7 +172,5 @@ export function startSchedulerLoop(deps: SchedulerDependencies): void {
 }
 
 export function _resetSchedulerLoopForTests(): void {
-  schedulerRunning = false;
-}
   schedulerRunning = false;
 }
