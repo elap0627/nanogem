@@ -9,7 +9,7 @@ export interface ChannelOpts {
 }
 
 export class TelegramChannel {
-  public name = 'telegram'; // 추가됨: 메인 라우터 인터페이스 호환용
+  public name = 'telegram';
   private bot: TelegramBot;
   private opts: ChannelOpts;
 
@@ -25,7 +25,7 @@ export class TelegramChannel {
   public async connect(): Promise<void> {
     logger.info('Telegram Bot API 연결을 시작합니다...');
 
-    this.bot.on('message', (msg: any) => { // any 타입 추가
+    this.bot.on('message', (msg: any) => {
       if (!msg.text) return; 
 
       const chatJid = msg.chat.id.toString();
@@ -37,7 +37,7 @@ export class TelegramChannel {
 
       this.opts.onChatMetadata(chatJid, timestamp, chatName, 'telegram', isGroup);
 
-      const newMessage: any = { // any 타입 추가
+      const newMessage = {
         chat_jid: chatJid,
         sender_jid: senderJid,
         sender_name: senderName,
@@ -45,12 +45,12 @@ export class TelegramChannel {
         content: msg.text,
         message_id: msg.message_id.toString(),
         from_me: false,
-      };
+      } as any;
 
       this.opts.onMessage(chatJid, newMessage);
     });
 
-    this.bot.on('polling_error', (error: any) => { // any 타입 추가
+    this.bot.on('polling_error', (error: any) => {
       logger.error({ err: error }, 'Telegram Polling 오류 발생');
     });
 
