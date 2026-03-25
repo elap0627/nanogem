@@ -6,15 +6,15 @@ import {
   DATA_DIR,
   MAIN_GROUP_FOLDER,
   TIMEZONE,
-} from './config.js'; // IPC_POLL_INTERVAL 제거
+} from './config.js';
 
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
 import { RegisteredGroup } from './types.js';
 
-const IPC_POLL_INTERVAL = 1000; // 추가
-export interface AvailableGroup { jid: string; name: string; lastActivity: string; isRegistered: boolean; } // 추가
+const IPC_POLL_INTERVAL = 1000;
+export interface AvailableGroup { jid: string; name: string; lastActivity: string; isRegistered: boolean; }
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
