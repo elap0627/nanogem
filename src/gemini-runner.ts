@@ -89,9 +89,9 @@ async function executeSearchAndLearn(searchPath: string, keyword: string): Promi
 
     console.log(`[System] ${copiedCount}개 파일 복사 완료. 벡터 DB 학습(ontology-builder.ts)을 시작합니다...`);
 
-    // 백그라운드에서 학습 스크립트 자동 실행
     const { stdout, stderr } = await execPromise('node --env-file=.env --experimental-strip-types src/ontology-builder.ts');
     console.log(`[Builder] ${stdout}`);
+    if (stderr) console.error(`[Builder Error Logs]\n${stderr}`); 
 
     return JSON.stringify({
       status: "success",
