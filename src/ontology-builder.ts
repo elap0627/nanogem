@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as lancedb from '@lancedb/lancedb';
+import officeParser from 'officeparser';
 import fs from 'fs';
 import path from 'path';
 
@@ -55,6 +56,8 @@ async function buildOntology() {
         const dataBuffer = fs.readFileSync(filePath);
         const pdfData = await pdfParse(dataBuffer);
         text = pdfData.text;
+      } else if (ext === '.pptx' || ext === '.docx') {
+        text = await officeParser.parseOfficeAsync(filePath);
       } else continue;
 
       const chunks = chunkText(text);
