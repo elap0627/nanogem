@@ -74,7 +74,7 @@ async function executeSearchAndLearn(searchPath: string, keyword: string): Promi
     const files = fs.readdirSync(searchPath);
     const matchedFiles = files.filter(file =>
       file.toLowerCase().includes(keyword.toLowerCase()) &&
-      (file.endsWith('.pdf') || file.endsWith('.txt') || file.endsWith('.md') || file.endsWith('.csv'))
+      (file.endsWith('.pdf') || file.endsWith('.txt') || file.endsWith('.md') || file.endsWith('.csv') || file.endsWith('.pptx') || file.endsWith('.docx'))
     );
 
     if (matchedFiles.length === 0) {
