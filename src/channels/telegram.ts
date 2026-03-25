@@ -73,7 +73,7 @@ export class TelegramChannel {
 
   public async sendMessage(jid: string, text: string): Promise<void> {
     try {
-      await this.bot.sendMessage(jid, text, { parse_mode: 'Markdown' });
+      await this.bot.sendMessage(jid, text);
     } catch (error) {
       logger.error({ jid, error }, 'Telegram 메시지 전송 실패');
     }
