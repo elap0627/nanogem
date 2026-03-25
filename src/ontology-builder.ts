@@ -11,6 +11,7 @@ const parseOfficeAsync = (officeParser as any).parseOfficeAsync || (officeParser
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
 const DB_DIR = path.join(process.cwd(), 'data', 'vectorstore');
+const TRACK_FILE = path.join(process.cwd(), 'data', 'processed_files.json');
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error('GEMINI_API_KEY가 없습니다.');
@@ -38,19 +39,30 @@ async function buildOntology() {
   if (!fs.existsSync(ONTOLOGY_DIR)) fs.mkdirSync(ONTOLOGY_DIR, { recursive: true });
   if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
+  let processedFiles: string[] = [];
+  if (fs.existsSync(TRACK_FILE)) {
+    processedFiles = JSON.parse(fs.readFileSync(TRACK_FILE, 'utf-8'));
+  }
+
   const db = await lancedb.connect(DB_DIR);
   const files = fs.readdirSync(ONTOLOGY_DIR);
 
   if (files.length === 0) return;
 
   const dataToInsert: any[] = [];
+  const newlyProcessed: string[] = [];
 
   for (const file of files) {
+    if (processedFiles.includes(file)) {
+      console.log(`⏩ 이미 학습된 파일입니다 (건너뜀): ${file}`);
+      continue;
+    }
+
     const filePath = path.join(ONTOLOGY_DIR, file);
     const ext = path.extname(file).toLowerCase();
     let text = '';
 
-    console.log(`📄 파일 파싱 중: ${file}`);
+    console.log(`📄 새 파일 파싱 중: ${file}`);
     try {
       if (ext === '.txt' || ext === '.md' || ext === '.csv') {
         text = fs.readFileSync(filePath, 'utf-8');
@@ -59,7 +71,6 @@ async function buildOntology() {
         const pdfData = await pdfParse(dataBuffer);
         text = pdfData.text;
       } else if (ext === '.pptx' || ext === '.docx') {
-        // PPT, DOCX 파싱 (v5 전용)
         text = await parseOfficeAsync(filePath);
       } else {
         console.log(`건너뜀 (지원하지 않는 확장자): ${file}`);
@@ -71,6 +82,8 @@ async function buildOntology() {
         const vector = await getEmbedding(chunks[i]);
         dataToInsert.push({ vector, text: chunks[i], source: file });
       }
+      
+      newlyProcessed.push(file);
     } catch (err) {
       console.error(`❌ ${file} 처리 중 오류:`, err);
     }
@@ -78,9 +91,18 @@ async function buildOntology() {
 
   if (dataToInsert.length > 0) {
     const tableNames = await db.tableNames();
-    if (tableNames.includes('knowledge_base')) await db.dropTable('knowledge_base');
-    await db.createTable('knowledge_base', dataToInsert);
-    console.log(`✅ ${dataToInsert.length}개의 데이터 블록 벡터 DB 저장 완료!`);
+    if (tableNames.includes('knowledge_base')) {
+      const table = await db.openTable('knowledge_base');
+      await table.add(dataToInsert);
+      console.log(`✅ 기존 DB에 ${dataToInsert.length}개의 데이터 블록 추가 완료!`);
+    } else {
+      await db.createTable('knowledge_base', dataToInsert);
+      console.log(`✅ 새 벡터 DB 생성 및 ${dataToInsert.length}개의 데이터 블록 저장 완료!`);
+    }
+
+    fs.writeFileSync(TRACK_FILE, JSON.stringify([...processedFiles, ...newlyProcessed], null, 2));
+  } else {
+    console.log('✨ 새로 학습할 데이터가 없습니다.');
   }
 }
 
