@@ -16,14 +16,12 @@ export function formatMessages(messages: NewMessage[]): string {
   return `<messages>\n${lines.join('\n')}\n</messages>`;
 }
 
-export function stripInternalTags(text: string): string {
-  return text.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
-}
+// [삭제됨] 클로드 전용 stripInternalTags 함수는 제거되었습니다.
 
 export function formatOutbound(rawText: string): string {
-  const text = stripInternalTags(rawText);
-  if (!text) return '';
-  return text;
+  // 제미나이의 응답은 내부 태그 파싱 없이 앞뒤 공백만 제거하여 순수하게 반환합니다.
+  if (!rawText) return '';
+  return rawText.trim();
 }
 
 export function routeOutbound(
