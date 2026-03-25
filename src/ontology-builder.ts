@@ -98,6 +98,11 @@ async function buildOntology() {
       } else if (ext === '.pptx' || ext === '.docx') {
         text = await officeParser.parseOfficeAsync(filePath);
         text = text || '';
+        
+        if (text.trim().length < 50) {
+          console.log(`  └ ⚠️ [경고] 텍스트가 없는 통짜 이미지 문서입니다! Gemini OCR은 PPT 파일을 직접 읽을 수 없으니, PDF로 변환해서 다시 지시해 주세요.`);
+          text = '';
+        }
       } else if (ext === '.pdf') {
         const dataBuffer = fs.readFileSync(filePath);
         const pdfData = await pdfParse(dataBuffer);
