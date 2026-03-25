@@ -1,0 +1,17 @@
+{
+  "name": "NanoGem Sandbox",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-sqlite"
+      ]
+    }
+  },
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
+}
