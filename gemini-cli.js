@@ -21,7 +21,7 @@ console.log("명령어를 입력하세요. (초기 설치: /setup, 봇 실행: /
 rl.prompt();
 
 // setup/index.ts에서 유지하기로 한 핵심 스텝들
-const setupSteps = ['environment', 'groups', 'register', 'service', 'verify'];
+const setupSteps = ['environment'];
 
 async function runSetup() {
   console.log("\n[System] 시스템 환경 스캔 및 NanoGem 초기 설정을 시작합니다...");
