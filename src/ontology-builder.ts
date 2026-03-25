@@ -2,7 +2,10 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as lancedb from '@lancedb/lancedb';
 import fs from 'fs';
 import path from 'path';
-import pdfParse from 'pdf-parse';
+
+// TS 문법 검사기 호들갑 방지용 (안전한 우회 파싱)
+import * as _pdfParse from 'pdf-parse';
+const pdfParse = (_pdfParse as any).default || _pdfParse;
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
 const DB_DIR = path.join(process.cwd(), 'data', 'vectorstore');
