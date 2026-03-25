@@ -1,0 +1,32 @@
+# skills/swap-gemini/manifest.yaml
+skill: swap-gemini
+version: 1.0.0
+description: "Anthropic Claude 엔진과 WhatsApp을 제거하고, Google Gemini 1.5 엔진과 Telegram으로 전체 시스템을 리플랫포밍합니다. 로컬 제안서 온톨로지(RAG) 기능을 포함합니다."
+core_version: 1.1.2 # 현재 베이스 버전
+
+# 완전히 삭제할 레거시 파일들 (클로드 SDK 및 WhatsApp 관련)
+file_ops:
+  - type: delete
+    path: src/container-runner.ts
+  - type: delete
+    path: src/channels/whatsapp.ts
+
+# 새로 추가할 파일들 (제미나이 코어 및 텔레그램 채널)
+adds:
+  - src/gemini-runner.ts
+  - src/channels/telegram.ts
+
+# 3-way 병합으로 덮어쓸 파일들
+modifies:
+  - src/index.ts
+  - src/router.ts
+
+# 패키지 의존성 (구조화된 데이터로 자동 병합됨)
+structured:
+  npm_dependencies:
+    "@google/generative-ai": "^0.2.1"
+    "node-telegram-bot-api": "^0.65.0"
+    "pdf-parse": "^1.1.1" # 온톨로지 파싱용
+  env_additions:
+    - GEMINI_API_KEY
+    - TELEGRAM_BOT_TOKEN
