@@ -1,12 +1,13 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import * as lancedb from '@lancedb/lancedb';
-import officeParser from 'officeparser';
 import fs from 'fs';
 import path from 'path';
 
-// TS 문법 검사기 호들갑 방지용 (안전한 우회 파싱)
 import * as _pdfParse from 'pdf-parse';
 const pdfParse = (_pdfParse as any).default || _pdfParse;
+
+import * as officeParser from 'officeparser';
+const parseOfficeAsync = (officeParser as any).parseOfficeAsync || (officeParser as any).default?.parseOfficeAsync;
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
 const DB_DIR = path.join(process.cwd(), 'data', 'vectorstore');
@@ -16,6 +17,7 @@ if (!apiKey) throw new Error('GEMINI_API_KEY가 없습니다.');
 const genAI = new GoogleGenerativeAI(apiKey);
 
 function chunkText(text: string, chunkSize = 1000, overlap = 200): string[] {
+  if (!text) return [];
   const chunks: string[] = [];
   let i = 0;
   while (i < text.length) {
@@ -41,7 +43,7 @@ async function buildOntology() {
 
   if (files.length === 0) return;
 
-  const dataToInsert = [];
+  const dataToInsert: any[] = [];
 
   for (const file of files) {
     const filePath = path.join(ONTOLOGY_DIR, file);
@@ -57,8 +59,12 @@ async function buildOntology() {
         const pdfData = await pdfParse(dataBuffer);
         text = pdfData.text;
       } else if (ext === '.pptx' || ext === '.docx') {
-        text = await officeParser.parseOfficeAsync(filePath);
-      } else continue;
+        // PPT, DOCX 파싱 (v5 전용)
+        text = await parseOfficeAsync(filePath);
+      } else {
+        console.log(`건너뜀 (지원하지 않는 확장자): ${file}`);
+        continue;
+      }
 
       const chunks = chunkText(text);
       for (let i = 0; i < chunks.length; i++) {
