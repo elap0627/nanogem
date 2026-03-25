@@ -1,7 +1,7 @@
 # skills/swap-gemini/manifest.yaml
 skill: swap-gemini
 version: 1.0.0
-description: "Anthropic Claude 엔진과 WhatsApp을 제거하고, Google Gemini 1.5 엔진과 Telegram으로 전체 시스템을 리플랫포밍합니다. 로컬 제안서 온톨로지(RAG) 기능을 포함합니다."
+description: "Anthropic Claude 엔진과 WhatsApp을 제거하고, Google Gemini 3.0 엔진과 Telegram으로 전체 시스템을 리플랫포밍합니다. 로컬 제안서 온톨로지(RAG) 기능을 포함합니다."
 core_version: 1.1.2 # 현재 베이스 버전
 
 # 완전히 삭제할 레거시 파일들 (클로드 SDK 및 WhatsApp 관련)
