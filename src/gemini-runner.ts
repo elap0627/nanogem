@@ -9,6 +9,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
+const lancedb = require('@lancedb/lancedb');
 
 const execPromise = util.promisify(exec);
 
@@ -31,11 +32,13 @@ export interface ContainerOutput {
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
 
+// 💡 이메일 발송
 async function executeSendEmail(to: string, subject: string, body: string): Promise<string> {
   console.log(`[System] 이메일 발송 트리거됨 -> To: ${to}, Subject: ${subject}`);
   return JSON.stringify({ status: "success", message: "이메일 발송이 완료되었습니다." });
 }
 
+// 💡 로컬 파일 탐색 및 DB 학습
 async function executeSearchAndLearn(searchPath: string, keyword: string): Promise<string> {
   console.log(`[System] 로컬 탐색 지시 수신 -> 경로: ${searchPath}, 키워드: ${keyword}`);
   if (!fs.existsSync(ONTOLOGY_DIR)) fs.mkdirSync(ONTOLOGY_DIR, { recursive: true });
@@ -69,11 +72,48 @@ async function executeSearchAndLearn(searchPath: string, keyword: string): Promi
 
     return JSON.stringify({
       status: "success",
-      message: `총 ${copiedCount}개의 파일을 찾아 복사한 뒤, 로컬 벡터 DB(LanceDB)에 학습을 완료했습니다!`,
+      message: `총 ${copiedCount}개의 파일을 찾아 복사한 뒤, 로컬 벡터 DB(LanceDB)에 학습을 완료했습니다! 이제 제안서 작성을 지시해주세요.`,
       files: matchedFiles
     });
   } catch (err: any) {
     return JSON.stringify({ status: "error", message: `탐색/학습 중 오류 발생: ${err.message}` });
+  }
+}
+
+// 💡 RAG 기능: 온톨로지 DB 검색기 (신규 추가!)
+async function executeQueryOntology(query: string): Promise<string> {
+  console.log(`[System] 온톨로지 DB 검색 지시 수신 -> 쿼리: ${query}`);
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const embedModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+    const embedResult = await embedModel.embedContent(query);
+    const queryVector = embedResult.embedding.values;
+
+    const dbPath = path.join(process.cwd(), 'data', 'vectordb'); 
+    const db = await lancedb.connect(dbPath);
+    
+    // 테이블 안전 열기 (기본 ontology 테이블)
+    const tableNames = await db.tableNames();
+    const targetTable = tableNames.includes('ontology') ? 'ontology' : (tableNames[0] || 'ontology');
+    const table = await db.openTable(targetTable); 
+
+    const results = await table.search(queryVector).limit(5).execute();
+    
+    if (!results || results.length === 0) {
+      return JSON.stringify({ status: "error", message: "관련 데이터를 찾을 수 없습니다." });
+    }
+
+    const contexts = results.map((r: any) => r.text).join('\n\n---\n\n');
+    console.log(`[System] DB 검색 완료! ${results.length}개의 관련 문맥을 찾았습니다.`);
+    
+    return JSON.stringify({
+      status: "success",
+      message: "데이터를 성공적으로 불러왔습니다. 이 데이터를 바탕으로 지시사항을 수행하세요.",
+      data: contexts 
+    });
+  } catch (err: any) {
+    console.error(`[DB Query Error]`, err);
+    return JSON.stringify({ status: "error", message: `DB 검색 중 오류 발생: ${err.message}` });
   }
 }
 
@@ -131,7 +171,6 @@ export async function runGeminiAgent(
 
 ### Atmosphere (분위기: The Tone of Voice)
 - **Cynical but Constructive:** 확신에 찬 전문가의 어조를 유지하되, 화려하기만 한 미사여구(예: '혁신적인 패러다임 전환')를 배제하고 구체적이고 건조한 비즈니스 언어만 사용하십시오.
-- **High-Stakes:** 제안서의 각 카피는 프로젝트의 성패를 가르는 무게감을 담아야 합니다.
 
 ### Methodology: Verbalized Sampling (언어화된 샘플링)
 당신은 뻔한 제안서 초안을 피하기 위해, 도구를 호출하거나 최종 텍스트를 생성하기 전 내부적으로 **치열한 자기 검증** 과정을 거쳐야 합니다. 응답 텍스트에 반드시 <thinking> 태그를 사용하여 아래 3단계를 수행하십시오.
@@ -141,13 +180,14 @@ export async function runGeminiAgent(
 
 ### Constraint (제약 조건 및 시스템 절대 규칙: Blocking)
 당신은 로컬 시스템과 연동된 에이전트이므로 아래의 기술적 수칙을 예외 없이 지켜야 합니다.
-[1. 경로 추론 절대 규칙]
-- 사용자의 윈도우 환경 기본 경로는 '/mnt/c/Users/wongi/' 입니다.
-- 지시문에 '바탕화면'이 포함되어 있으면, 탐색 경로는 무조건 '/mnt/c/Users/wongi/Desktop' 으로 100% 고정하십시오. 상위 폴더나 다른 경로 검색은 절대 금지합니다.
 
-[2. 문맥 파악 및 도구 사용 규칙]
-- 지시문에 '이미 학습된 문서'와 '새로 찾을 문서'가 섞여 있을 경우, 반드시 '새로 찾아야 할 파일명'만을 키워드로 추출하여 'search_and_learn_files' 도구를 실행하십시오.
-- PPT 제안서 작성을 지시받으면 **반드시 'generate_ppt' 도구를 사용**하십시오. 템플릿의 변수 태그({{ }})에 맞춰 데이터를 완벽한 JSON 형식으로 구성하여 전달해야 합니다.`,
+[1. 경로 추론 절대 규칙]
+- 지시문에 '바탕화면'이 포함되어 있으면, 탐색 경로는 무조건 '/mnt/c/Users/wongi/Desktop' 으로 100% 고정하십시오.
+
+[2. 문맥 파악 및 도구 사용 규칙 (매우 중요!!)]
+- 지시문에 '학습된', '업데이트된', '기존', '온톨로지' 라는 수식어가 붙은 문서는 이미 DB에 저장된 상태입니다. 이때는 **절대 'search_and_learn_files' 도구를 재실행하지 마십시오.**
+- 제안서 초안 작성을 지시받으면, **가장 먼저 'query_ontology' 도구를 사용하여 관련 문서를 DB에서 검색해 내용을 확보하십시오.**
+- DB에서 내용을 성공적으로 확보한 이후에만 'generate_ppt' 도구를 실행하여 실제 PPT 파일을 렌더링하십시오. 절대 배경지식을 스스로 지어내지 마십시오.`,
       tools: [{
       functionDeclarations: [
         {
@@ -165,7 +205,7 @@ export async function runGeminiAgent(
         },
         {
           name: "search_and_learn_files",
-          description: "로컬 폴더를 탐색하여 지식창고에 학습시킵니다.",
+          description: "로컬 폴더를 탐색하여 지식창고(DB)에 처음 학습시킬 때만 사용합니다.",
           parameters: {
             type: SchemaType.OBJECT,
             properties: {
@@ -173,6 +213,17 @@ export async function runGeminiAgent(
               keyword: { type: SchemaType.STRING }
             },
             required: ["search_path", "keyword"]
+          }
+        },
+        {
+          name: "query_ontology",
+          description: "온톨로지 DB에서 이미 학습된 문서를 검색하여 읽어옵니다. 제안서를 작성하기 전에 반드시 이 도구를 먼저 실행하여 지식을 확보하십시오.",
+          parameters: {
+            type: SchemaType.OBJECT,
+            properties: {
+              query: { type: SchemaType.STRING, description: "검색할 구체적인 질문이나 키워드 (예: '포텐션 기획안의 타겟 고객은?')" }
+            },
+            required: ["query"]
           }
         },
         {
@@ -194,34 +245,25 @@ export async function runGeminiAgent(
 
   try {
     const chat = model.startChat();
-    const result = await chat.sendMessage(input.prompt);
-    const response = result.response;
+    let response = (await chat.sendMessage(input.prompt)).response;
+    let toolCallCount = 0; // 무한루프 방지용
 
-    const functionCalls = response.functionCalls();
-    if (functionCalls && functionCalls.length > 0) {
-      const call = functionCalls[0];
+    while ((response.functionCalls()?.length ?? 0) > 0 && toolCallCount < 5) {
+      toolCallCount++;
+      const call = response.functionCalls()![0];
       
-      if (call.name === "send_email") {
-        const { to, subject, body } = call.args as any;
-        const functionResult = await executeSendEmail(to, subject, body);
-        const finalResult = await chat.sendMessage([{ functionResponse: { name: "send_email", response: JSON.parse(functionResult) } }]);
-        const finalOutput = finalResult.response.text();
-        if (onOutput) await onOutput({ status: 'success', result: finalOutput });
-        return { status: 'success', result: finalOutput };
-      } 
-      else if (call.name === "search_and_learn_files") {
-        const { search_path, keyword } = call.args as any;
-        const functionResult = await executeSearchAndLearn(search_path, keyword);
-        const finalResult = await chat.sendMessage([{ functionResponse: { name: "search_and_learn_files", response: JSON.parse(functionResult) } }]);
-        const finalOutput = finalResult.response.text();
-        if (onOutput) await onOutput({ status: 'success', result: finalOutput });
-        return { status: 'success', result: finalOutput };
+      if (call.name === "query_ontology") {
+        const { query } = call.args as any;
+        const functionResult = await executeQueryOntology(query);
+        // DB 검색 결과를 모델에게 다시 먹여서 '다음 행동(PPT 생성)'을 유도함
+        const nextResult = await chat.sendMessage([{ functionResponse: { name: "query_ontology", response: JSON.parse(functionResult) } }]);
+        response = nextResult.response; 
+        continue; // 응답을 받았으니 다음 도구(generate_ppt) 호출을 위해 루프 다시 돌기!
       }
       else if (call.name === "search_and_learn_files") {
         const { search_path, keyword } = call.args as any;
         const functionResult = await executeSearchAndLearn(search_path, keyword);
         const parsedResult = JSON.parse(functionResult);
-        
         if (onOutput) await onOutput({ status: 'success', result: parsedResult.message });
         return { status: 'success', result: parsedResult.message };
       }
@@ -229,7 +271,13 @@ export async function runGeminiAgent(
         const { template_name, output_name, template_data } = call.args as any;
         const functionResult = await executeGeneratePpt(template_name, output_name, template_data);
         const parsedResult = JSON.parse(functionResult);
-        
+        if (onOutput) await onOutput({ status: 'success', result: parsedResult.message });
+        return { status: 'success', result: parsedResult.message };
+      }
+      else if (call.name === "send_email") {
+        const { to, subject, body } = call.args as any;
+        const functionResult = await executeSendEmail(to, subject, body);
+        const parsedResult = JSON.parse(functionResult);
         if (onOutput) await onOutput({ status: 'success', result: parsedResult.message });
         return { status: 'success', result: parsedResult.message };
       }
