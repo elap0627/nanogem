@@ -9,7 +9,8 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
-const lancedb = require('@lancedb/lancedb');
+const lancedb = require('@lancedb/lancedb'); 
+const pptxgen = require('pptxgenjs');
 
 const execPromise = util.promisify(exec);
 
@@ -32,13 +33,13 @@ export interface ContainerOutput {
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
 
-// 💡 이메일 발송
+
 async function executeSendEmail(to: string, subject: string, body: string): Promise<string> {
   console.log(`[System] 이메일 발송 트리거됨 -> To: ${to}, Subject: ${subject}`);
   return JSON.stringify({ status: "success", message: "이메일 발송이 완료되었습니다." });
 }
 
-// 💡 로컬 파일 탐색 및 DB 학습
+
 async function executeSearchAndLearn(searchPath: string, keyword: string): Promise<string> {
   console.log(`[System] 로컬 탐색 지시 수신 -> 경로: ${searchPath}, 키워드: ${keyword}`);
   if (!fs.existsSync(ONTOLOGY_DIR)) fs.mkdirSync(ONTOLOGY_DIR, { recursive: true });
@@ -90,6 +91,7 @@ async function executeQueryOntology(query: string): Promise<string> {
 
     const db = await lancedb.connect('data/vectorstore');
     
+    // 테이블 안전 열기 (기본 ontology 테이블)
     const tableNames = await db.tableNames();
     const targetTable = tableNames.includes('ontology') ? 'ontology' : (tableNames[0] || 'ontology');
     const table = await db.openTable(targetTable); 
@@ -114,35 +116,49 @@ async function executeQueryOntology(query: string): Promise<string> {
   }
 }
 
-// 💡 PPT 생성 및 로컬 저장 기능
 async function executeGeneratePpt(templateName: string, outputName: string, templateDataString: string): Promise<string> {
-  console.log(`[System] PPT 생성 지시 수신 -> 템플릿: ${templateName}, 출력: ${outputName}`);
-  const templatePath = path.join(process.cwd(), 'data', 'templates', templateName);
-  const outputDir = path.join(process.cwd(), 'data', 'output');
-  const outputPath = path.join(outputDir, outputName);
-
-  if (!fs.existsSync(templatePath)) {
-    return JSON.stringify({ status: "error", message: `템플릿 파일(${templateName})이 data/templates 폴더에 존재하지 않습니다.` });
-  }
-
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+  console.log(`[System] PPT 네이티브 렌더링 시작 -> 출력: ${outputName}`);
+  
+  let outputPath = outputName;
+  
+  // 에이전트가 '/mnt/c/...' 같은 절대 경로를 주지 않고 파일명만 줬다면 기본 output 폴더 사용
+  if (!path.isAbsolute(outputName)) {
+    const outputDir = path.join(process.cwd(), 'data', 'output');
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    outputPath = path.join(outputDir, outputName);
+  } else {
+    // 바탕화면 등 절대 경로일 경우, 혹시 부모 폴더가 없으면 에러 안 나게 생성
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
 
   try {
+    const pptx = new pptxgen();
     const templateData = JSON.parse(templateDataString);
-    const content = fs.readFileSync(templatePath, 'binary');
-    const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+    
+    // JSON 데이터에서 title_1 ~ 20 번까지 찾아서 자동으로 슬라이드 추가
+    for (let i = 1; i <= 20; i++) {
+      const title = templateData[`title_${i}`];
+      const content = templateData[`content_${i}`];
+      
+      if (title || content) {
+        let slide = pptx.addSlide();
 
-    doc.render(templateData);
+        if (title) {
+          slide.addText(title, { x: 0.5, y: 0.5, w: '90%', h: 1, fontSize: 28, bold: true, color: '003366' });
+        }
 
-    const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-    fs.writeFileSync(outputPath, buf);
+        if (content) {
+          slide.addText(content, { x: 0.5, y: 1.8, w: '90%', h: 3.5, fontSize: 16, color: '333333', valign: 'top' });
+        }
+      }
+    }
+
+    await pptx.writeFile({ fileName: outputPath });
 
     return JSON.stringify({
       status: "success",
-      message: `성공적으로 PPT 파일이 생성되었습니다. 파일은 ${outputPath} 에 저장되었습니다.`,
+      message: `성공적으로 PPT 파일이 렌더링되었습니다. 파일은 ${outputPath} 에 저장되었습니다.`,
       output_path: outputPath
     });
   } catch (err: any) {
@@ -184,8 +200,9 @@ export async function runGeminiAgent(
 [2. 문맥 파악 및 도구 사용 규칙 (매우 중요!!)]
 - 지시문에 '학습된', '업데이트된', '기존', '온톨로지' 라는 수식어가 붙은 문서는 이미 DB에 저장된 상태입니다. 이때는 **절대 'search_and_learn_files' 도구를 재실행하지 마십시오.**
 - 제안서 초안 작성을 지시받으면, **가장 먼저 'query_ontology' 도구를 사용하여 관련 문서를 DB에서 검색해 내용을 확보하십시오.**
-- DB에서 내용을 성공적으로 확보한 후, 사용자가 특정 템플릿을 명시하지 않았다면 'generate_ppt' 도구를 억지로 실행하지 마십시오.
-- 대신 **채팅창에 마크다운(Markdown) 형식을 사용하여, 슬라이드별(1장~10장) 제목, 핵심 메시지, 세부 내용을 아주 상세하고 구조화된 텍스트 초안으로 직접 출력**하십시오. 절대 배경지식을 스스로 지어내지 마십시오.`,
+- DB에서 내용을 성공적으로 확보한 후, **반드시 'generate_ppt' 도구를 실행하여 PPT 파일을 생성**하십시오.
+- 시스템에 네이티브 PPT 렌더링 엔진이 장착되어 있으므로 별도의 템플릿 파일이 필요하지 않습니다. 도구 호출 시 'template_name' 파라미터에는 'none'을 입력하십시오.
+- 도구에 전달할 'template_data' JSON 키값은 반드시 1장부터 10장까지 'title_1', 'content_1' ~ 'title_10', 'content_10' 형식으로 엄격하게 맞춰 구조화하십시오. 절대 배경지식을 스스로 지어내지 마십시오.`,
       tools: [{
       functionDeclarations: [
         {
@@ -226,13 +243,13 @@ export async function runGeminiAgent(
         },
         {
           name: "generate_ppt",
-          description: "마스터 템플릿의 태그에 데이터를 주입하여 로컬에 PPT 파일을 생성합니다.",
+          description: "JSON 데이터를 바탕으로 새로운 PPT 파일을 렌더링하여 로컬에 저장합니다.",
           parameters: {
             type: SchemaType.OBJECT,
             properties: {
-              template_name: { type: SchemaType.STRING, description: "사용할 템플릿 파일명 (예: template.pptx)" },
-              output_name: { type: SchemaType.STRING, description: "생성될 파일명 (예: 결과물.pptx)" },
-              template_data: { type: SchemaType.STRING, description: "템플릿에 주입할 데이터(JSON 문자열 형식). 키값은 템플릿의 {{변수명}}과 일치해야 함." }
+              template_name: { type: SchemaType.STRING, description: "템플릿을 사용하지 않으므로 무조건 'none'을 입력하십시오." },
+              output_name: { type: SchemaType.STRING, description: "생성될 파일명 (예: 포텐션_제안서.pptx)" },
+              template_data: { type: SchemaType.STRING, description: "슬라이드 내용. 반드시 title_1, content_1 부터 title_10, content_10 형태의 JSON 문자열로 구성해야 합니다." }
             },
             required: ["template_name", "output_name", "template_data"]
           }
@@ -244,7 +261,7 @@ export async function runGeminiAgent(
   try {
     const chat = model.startChat();
     let response = (await chat.sendMessage(input.prompt)).response;
-    let toolCallCount = 0; // 무한루프 방지용
+    let toolCallCount = 0; 
 
     while ((response.functionCalls()?.length ?? 0) > 0 && toolCallCount < 5) {
       toolCallCount++;
