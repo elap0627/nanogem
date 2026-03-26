@@ -6,8 +6,7 @@ import path from 'path';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const _pdfParse = require('pdf-parse');
-const pdfParse = _pdfParse.default || _pdfParse;
+import { extractText } from 'unpdf';
 const officeParser = require('officeparser');
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
@@ -105,8 +104,8 @@ async function buildOntology() {
           text = '';
         }
       } else if (ext === '.pdf') {
-        const dataBuffer = fs.readFileSync(filePath);
-        const pdfData = await pdfParse(dataBuffer);
+        const dataBuffer = new Uint8Array(fs.readFileSync(filePath));
+        const pdfData = await extractText(dataBuffer);
         text = pdfData.text || '';
         
         if (text.trim().length < 50) {
