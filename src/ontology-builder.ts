@@ -47,7 +47,7 @@ async function extractTextWithVision(filePath: string, mimeType: string): Promis
       displayName: path.basename(filePath) 
     });
     
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent([
       { fileData: { fileUri: uploadResult.file.uri, mimeType: uploadResult.file.mimeType } },
       { text: "이 문서 또는 이미지에 포함된 모든 텍스트를 있는 그대로 빠짐없이 추출해. 부가적인 설명은 절대 하지 마." }
