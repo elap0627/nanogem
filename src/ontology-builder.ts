@@ -106,7 +106,7 @@ async function buildOntology() {
       } else if (ext === '.pdf') {
         const dataBuffer = new Uint8Array(fs.readFileSync(filePath));
         const pdfData = await extractText(dataBuffer);
-        text = pdfData.text || '';
+        text = Array.isArray(pdfData.text) ? pdfData.text.join('\n') : (pdfData.text || '');
         
         if (text.trim().length < 50) {
           console.log(`  └ ⚠️ 텍스트 레이어 부족 (스캔본 추정). 비전 OCR을 실행합니다...`);
