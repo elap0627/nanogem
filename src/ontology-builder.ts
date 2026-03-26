@@ -6,7 +6,8 @@ import path from 'path';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+const _pdfParse = require('pdf-parse');
+const pdfParse = _pdfParse.default || _pdfParse;
 const officeParser = require('officeparser');
 
 const ONTOLOGY_DIR = path.join(process.cwd(), 'data', 'ontology');
