@@ -198,13 +198,20 @@ export async function runGeminiAgent(
         if (onOutput) await onOutput({ status: 'success', result: finalOutput });
         return { status: 'success', result: finalOutput };
       }
+      else if (call.name === "search_and_learn_files") {
+        const { search_path, keyword } = call.args as any;
+        const functionResult = await executeSearchAndLearn(search_path, keyword);
+        const parsedResult = JSON.parse(functionResult);
+        if (onOutput) await onOutput({ status: 'success', result: parsedResult.message });
+        return { status: 'success', result: parsedResult.message };
+      }
       else if (call.name === "generate_ppt") {
         const { template_name, output_name, template_data } = call.args as any;
         const functionResult = await executeGeneratePpt(template_name, output_name, template_data);
-        const finalResult = await chat.sendMessage([{ functionResponse: { name: "generate_ppt", response: JSON.parse(functionResult) } }]);
-        const finalOutput = finalResult.response.text();
-        if (onOutput) await onOutput({ status: 'success', result: finalOutput });
-        return { status: 'success', result: finalOutput };
+        const parsedResult = JSON.parse(functionResult);
+        
+        if (onOutput) await onOutput({ status: 'success', result: parsedResult.message });
+        return { status: 'success', result: parsedResult.message };
       }
     }
 
