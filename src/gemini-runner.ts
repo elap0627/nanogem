@@ -89,8 +89,7 @@ async function executeQueryOntology(query: string): Promise<string> {
     const embedResult = await embedModel.embedContent(query);
     const queryVector = embedResult.embedding.values;
 
-    const dbPath = path.join(process.cwd(), 'data', 'vectordb'); 
-    const db = await lancedb.connect(dbPath);
+    const db = await lancedb.connect('data/vectordb');
     
     // 테이블 안전 열기 (기본 ontology 테이블)
     const tableNames = await db.tableNames();
