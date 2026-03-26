@@ -94,7 +94,7 @@ async function executeQueryOntology(query: string): Promise<string> {
     const targetTable = tableNames.includes('ontology') ? 'ontology' : (tableNames[0] || 'ontology');
     const table = await db.openTable(targetTable); 
 
-    const results = await table.search(queryVector).limit(5).execute();
+    const results = await table.search(queryVector).limit(5).toArray();
     
     if (!results || results.length === 0) {
       return JSON.stringify({ status: "error", message: "관련 데이터를 찾을 수 없습니다." });
