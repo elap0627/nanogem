@@ -9,16 +9,16 @@ import {
   TRIGGER_PATTERN,
 } from './config.js';
 
-// [변경점 1] WhatsApp 대신 텔레그램 채널 임포트
+
 import { TelegramChannel } from './channels/telegram.js';
 
-// [변경점 2] Container Runner 대신 Gemini Runner 임포트
+
 import {
   ContainerOutput, 
   runGeminiAgent 
 } from './gemini-runner.js';
 
-// 컨테이너 의존성(cleanupOrphans, ensureContainerRuntimeRunning 등)은 제거되었습니다.
+
 
 import {
   getAllChats,
@@ -159,7 +159,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   const output = await runAgent(group, prompt, chatJid, async (result) => {
     if (result.result) {
       const raw = typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
-      const text = raw.trim(); // 내부 태그 제거 로직(stripInternalTags) 삭제 완료
+      const text = raw.trim(); 
       if (text) {
         await channel.sendMessage(chatJid, text);
         outputSentToUser = true;
@@ -184,7 +184,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   return true;
 }
 
-// [변경점 4] 컨테이너 런타임 호출을 제거하고 runGeminiAgent로 직접 연결
+
 async function runAgent(
   group: RegisteredGroup,
   prompt: string,
@@ -205,7 +205,7 @@ async function runAgent(
     : undefined;
 
   try {
-    // 컨테이너 서브프로세스 생성 로직을 제거하고 Native Node.js 환경에서 직접 실행
+
     const output = await runGeminiAgent(
       {
         prompt,
@@ -235,7 +235,7 @@ async function runAgent(
 }
 
 async function startMessageLoop(): Promise<void> {
-  // 메시지 루프 기본 로직은 원본의 형태를 유지하여 안정성을 도모합니다.
+
   if (messageLoopRunning) return;
   messageLoopRunning = true;
 
@@ -301,14 +301,16 @@ function recoverPendingMessages(): void {
 }
 
 async function main(): Promise<void> {
-  // 컨테이너 데몬 확인 제거 완료
+
   initDatabase();
   loadState();
 
   const shutdown = async (signal: string) => {
-    logger.info({ signal }, 'Shutdown signal received');
+    logger.info({ signal }, '🛑 Shutdown signal received! 텔레그램 폴링부터 즉시 차단합니다.');
+    
+    for (const ch of channels) await ch.disconnect(); 
+    
     await queue.shutdown(10000);
-    for (const ch of channels) await ch.disconnect();
     process.exit(0);
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));
