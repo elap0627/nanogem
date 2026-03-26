@@ -80,7 +80,6 @@ async function executeSearchAndLearn(searchPath: string, keyword: string): Promi
   }
 }
 
-// 💡 RAG 기능: 온톨로지 DB 검색기 (신규 추가!)
 async function executeQueryOntology(query: string): Promise<string> {
   console.log(`[System] 온톨로지 DB 검색 지시 수신 -> 쿼리: ${query}`);
   try {
@@ -89,9 +88,8 @@ async function executeQueryOntology(query: string): Promise<string> {
     const embedResult = await embedModel.embedContent(query);
     const queryVector = embedResult.embedding.values;
 
-    const db = await lancedb.connect('data/vectordb');
+    const db = await lancedb.connect('data/vectorstore');
     
-    // 테이블 안전 열기 (기본 ontology 테이블)
     const tableNames = await db.tableNames();
     const targetTable = tableNames.includes('ontology') ? 'ontology' : (tableNames[0] || 'ontology');
     const table = await db.openTable(targetTable); 
