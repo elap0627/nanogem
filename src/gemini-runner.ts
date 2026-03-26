@@ -124,7 +124,7 @@ export async function runGeminiAgent(
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-3-pro-preview",
+    model: "gemini-3.1-flash-lite",
     systemInstruction: `너는 제안서 작성을 돕는 최고 수준의 AI 에이전트야.
 사용자의 윈도우 환경 파일 경로는 '/mnt/c/Users/wongi/' 로 시작해.
 사용자가 '바탕화면'을 언급하면 '/mnt/c/Users/wongi/Desktop'을 탐색 경로로 추론해.
